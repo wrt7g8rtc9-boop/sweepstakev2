@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="theme-color" content="#08080f"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Sweepstake"/>
+  <title>World Cup 2026 Sweepstake</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    body{background:#08080f;color:#fff;overscroll-behavior:none;font-family:system-ui,sans-serif}
+    #root{min-height:100vh}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+
+// ─── API CONFIG ───────────────────────────────────────────────────────────────
+const API_KEY  = "0461f29c57234b87946bbe52da8bcf1a";
+const BASE     = "https://api.football-data.org/v4";
+const HEADERS  = { "X-Auth-Token": API_KEY };
+
+// ─── SWEEPSTAKE ───────────────────────────────────────────────────────────────
+const P = { KYLE:"Kyle", DAD:"Dad", MUM:"Mum", DOM:"Dom" };
+const COLORS = {
+  Kyle: { a:"#3B82F6", d:"rgba(59,130,246,0.1)",  b:"rgba(59,130,246,0.25)" },
+  Dad:  { a:"#10B981", d:"rgba(16,185,129,0.1)",  b:"rgba(16,185,129,0.25)" },
+  Mum:  { a:"#F43F5E", d:"rgba(244,63,94,0.1)",   b:"rgba(244,63,94,0.25)"  },
+  Dom:  { a:"#F59E0B", d:"rgba(245,158,11,0.1)",  b:"rgba(245,158,11,0.25)" },
+};
+const STAGES = ["Group Stage","Round of 32","Round of 16","Quarter-Final","Semi-Final","Final","Winner 🏆"];
+const SMULT   = [1, 1.3, 1.7, 2.2, 3.0, 4.5, 7.0];
+
+const SW_TEAMS = [
+  { id:"france",      name:"France",       alt:["France"],             flag:"🇫🇷", odds:"+475",  prob:17.4, owner:P.KYLE, star:true  },
+  { id:"spain",       name:"Spain",        alt:["Spain"],              flag:"🇪🇸", odds:"+450",  prob:18.2, owner:P.KYLE, star:true  },
+  { id:"norway",      name:"Norway",       alt:["Norway"],             flag:"🇳🇴", odds:"30-1",  prob:3.2,  owner:P.KYLE, star:true  },
+  { id:"canada",      name:"Canada",       alt:["Canada"],             flag:"🇨🇦", odds:"100-1", prob:1.0,  owner:P.KYLE, star:false },
+  { id:"serbia",      name:"Serbia",       alt:["Serbia"],             flag:"🇷🇸", odds:"150-1", prob:0.7,  owner:P.KYLE, star:false },
+  { id:"poland",      name:"Poland",       alt:["Poland"],             flag:"🇵🇱", odds:"150-1", prob:0.7,  owner:P.KYLE, star:false },
+  { id:"netherlands", name:"Netherlands",  alt:["Netherlands"],        flag:"🇳🇱", odds:"20-1",  prob:4.8,  owner:P.DAD,  star:true  },
+  { id:"brazil",      name:"Brazil",       alt:["Brazil"],             flag:"🇧🇷", odds:"+800",  prob:11.1, owner:P.DAD,  star:true  },
+  { id:"england",     name:"England",      alt:["England"],            flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", odds:"+700",  prob:12.5, owner:P.DAD,  star:true  },
+  { id:"southkorea",  name:"South Korea",  alt:["Korea Republic","South Korea"], flag:"🇰🇷", odds:"100-1", prob:1.0, owner:P.DAD, star:false },
+  { id:"morocco",     name:"Morocco",      alt:["Morocco"],            flag:"🇲🇦", odds:"66-1",  prob:1.5,  owner:P.DAD,  star:false },
+  { id:"denmark",     name:"Denmark",      alt:["Denmark"],            flag:"🇩🇰", odds:"150-1", prob:0.7,  owner:P.DAD,  star:false },
+  { id:"belgium",     name:"Belgium",      alt:["Belgium"],            flag:"🇧🇪", odds:"40-1",  prob:2.4,  owner:P.MUM,  star:true  },
+  { id:"usa",         name:"USA",          alt:["USA","United States"], flag:"🇺🇸", odds:"50-1",  prob:2.0,  owner:P.MUM,  star:false },
+  { id:"mexico",      name:"Mexico",       alt:["Mexico"],             flag:"🇲🇽", odds:"33-1",  prob:2.9,  owner:P.MUM,  star:true  },
+  { id:"germany",     name:"Germany",      alt:["Germany"],            flag:"🇩🇪", odds:"14-1",  prob:6.7,  owner:P.MUM,  star:true  },
+  { id:"ecuador",     name:"Ecuador",      alt:["Ecuador"],            flag:"🇪🇨", odds:"100-1", prob:1.0,  owner:P.MUM,  star:false },
+  { id:"turkey",      name:"Turkey",       alt:["Turkey","Türkiye"],   flag:"🇹🇷", odds:"80-1",  prob:1.2,  owner:P.MUM,  star:false },
+  { id:"uruguay",     name:"Uruguay",      alt:["Uruguay"],            flag:"🇺🇾", odds:"65-1",  prob:1.5,  owner:P.DOM,  star:false },
+  { id:"japan",       name:"Japan",        alt:["Japan"],              flag:"🇯🇵", odds:"80-1",  prob:1.2,  owner:P.DOM,  star:false },
+  { id:"colombia",    name:"Colombia",     alt:["Colombia"],           flag:"🇨🇴", odds:"40-1",  prob:2.4,  owner:P.DOM,  star:true  },
+  { id:"argentina",   name:"Argentina",    alt:["Argentina"],          flag:"🇦🇷", odds:"+900",  prob:10.0, owner:P.DOM,  star:true  },
+  { id:"portugal",    name:"Portugal",     alt:["Portugal"],           flag:"🇵🇹", odds:"+800",  prob:11.1, owner:P.DOM,  star:true  },
+  { id:"australia",   name:"Australia",    alt:["Australia"],          flag:"🇦🇺", odds:"150-1", prob:0.7,  owner:P.DOM,  star:false },
+];
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+const rgb    = h => `${parseInt(h.slice(1,3),16)},${parseInt(h.slice(3,5),16)},${parseInt(h.slice(5,7),16)}`;
+const smult  = s => SMULT[STAGES.indexOf(s)] ?? 1;
+const pts    = t => t.eliminated ? 0 : +(t.prob * smult(t.stage || "Group Stage")).toFixed(2);
+const opscore= (teams,o) => +teams.filter(t=>t.owner===o).reduce((s,t)=>s+pts(t),0).toFixed(1);
+const lb     = teams => Object.values(P).map(p=>({name:p,score:opscore(teams,p)})).sort((a,b)=>b.score-a.score);
+const rcol   = r => r==="W"?"#22C55E":r==="D"?"#F59E0B":r==="L"?"#EF4444":"#555";
+
+// Match team name from API to sweepstake team
+function matchSW(apiName) {
+  if (!apiName) return null;
+  const n = apiName.toLowerCase();
+  return SW_TEAMS.find(t => t.alt.some(a => a.toLowerCase() === n || n.includes(a.toLowerCase()) || a.toLowerCase().includes(n)));
+}
+
+// Map football-data.org status → simple status
+function mapStatus(s) {
+  if (s === "FINISHED")  return "FT";
+  if (s === "IN_PLAY")   return "LIVE";
+  if (s === "PAUSED")    return "HT";
+  if (s === "TIMED" || s === "SCHEDULED") return "NS";
+  return s || "NS";
+}
+
+// ─── API CALLS ────────────────────────────────────────────────────────────────
+async function fetchMatches() {
+  // Fetch all WC 2026 matches
+  const res = await fetch(`${BASE}/competitions/WC/matches?season=2026`, { headers: HEADERS });
+  if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`);
+  const data = await res.json();
+  return (data.matches || []).map(m => ({
+    id:       m.id,
+    date:     m.utcDate?.slice(0,10),
+    utcDate:  m.utcDate,
+    team1:    m.homeTeam?.name,
+    team2:    m.awayTeam?.name,
+    group:    m.group || m.stage,
+    venue:    m.venue || "",
+    round:    m.matchday,
+    status:   mapStatus(m.status),
+    minute:   m.minute || null,
+    score1:   m.score?.fullTime?.home ?? null,
+    score2:   m.score?.fullTime?.away ?? null,
+    ht1:      m.score?.halfTime?.home ?? null,
+    ht2:      m.score?.halfTime?.away ?? null,
+    stage:    m.stage,
+  }));
+}
+
+async function fetchStandings() {
+  const res = await fetch(`${BASE}/competitions/WC/standings?season=2026`, { headers: HEADERS });
+  if (!res.ok) throw new Error(`Standings ${res.status}`);
+  const data = await res.json();
+  return data.standings || [];
+}
+
+async function fetchScorers() {
+  const res = await fetch(`${BASE}/competitions/WC/scorers?season=2026&limit=20`, { headers: HEADERS });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.scorers || [];
+}
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+function App() {
+  const [swTeams, setSwTeams] = useState(() => SW_TEAMS.map(t=>({...t, stage:"Group Stage", eliminated:false})));
+  const [matches,   setMatches]   = useState([]);
+  const [standings, setStandings] = useState([]);
+  const [scorers,   setScorers]   = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState(null);
+  const [lastFetch, setLastFetch] = useState(null);
+  const [tab,       setTab]       = useState("scores");
+  const [selected,  setSelected]  = useState(null);
+  const [expanded,  setExpanded]  = useState(null);
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const [m, s, sc] = await Promise.all([fetchMatches(), fetchStandings(), fetchScorers()]);
+      setMatches(m);
+      setStandings(s);
+      setScorers(sc);
+      setLastFetch(new Date());
+    } catch(e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    const t = setInterval(fetchAll, 60 * 1000); // refresh every 60s
+    return () => clearInterval(t);
+  }, [fetchAll]);
+
+  const setStage = (id, stage) =>
+    setSwTeams(prev => prev.map(t => t.id===id ? {...t, stage, eliminated:stage==="Eliminated"} : t));
+
+  // Derived
+  const today        = new Date().toISOString().slice(0,10);
+  const liveMs       = matches.filter(m => m.status==="LIVE" || m.status==="HT");
+  const todayMs      = matches.filter(m => m.date===today).sort((a,b)=>a.utcDate?.localeCompare(b.utcDate));
+  const recentMs     = matches.filter(m => m.status==="FT").sort((a,b)=>b.utcDate?.localeCompare(a.utcDate));
+  const upcomingMs   = matches.filter(m => m.status==="NS" && m.date>=today).sort((a,b)=>a.utcDate?.localeCompare(b.utcDate));
+  const leaderboard  = lb(swTeams);
+  const maxScore     = Math.max(...Object.values(P).map(p=>opscore(swTeams,p)));
+  const bestTeam     = [...swTeams].filter(t=>!t.eliminated).sort((a,b)=>pts(b)-pts(a))[0];
+
+  // ── STYLES ──────────────────────────────────────────────────────────────────
+  const S = {
+    page:   { fontFamily:"'Inter',system-ui,sans-serif", background:"#08080f", minHeight:"100vh", color:"#fff", maxWidth:480, margin:"0 auto" },
+    tabBtn: a => ({ flex:1, padding:"11px 0", fontSize:10, fontWeight:600, letterSpacing:"0.06em", background:"none", border:"none", color:a?"#C9A84C":"rgba(255,255,255,0.35)", borderBottom:a?"2px solid #C9A84C":"2px solid transparent", cursor:"pointer", textTransform:"uppercase" }),
+    sec:    { fontSize:10, color:"rgba(255,255,255,0.35)", letterSpacing:"0.12em", marginBottom:8, marginTop:4 },
+    pill:   (c,sm) => ({ background:`rgba(${rgb(c)},0.15)`, border:`1px solid rgba(${rgb(c)},0.3)`, borderRadius:20, padding:sm?"1px 6px":"2px 9px", fontSize:sm?9:10, color:c, fontWeight:600, display:"inline-block" }),
+    card:   c => ({ background:`rgba(${rgb(c)},0.07)`, border:`1px solid rgba(${rgb(c)},0.18)`, borderRadius:12, padding:"14px 15px", marginBottom:10 }),
+  };
+
+  // ── MATCH CARD ───────────────────────────────────────────────────────────────
+  const MatchCard = ({ m }) => {
+    const isLive = m.status==="LIVE"||m.status==="HT";
+    const isDone = m.status==="FT";
+    const isNS   = m.status==="NS";
+    const sw1 = matchSW(m.team1);
+    const sw2 = matchSW(m.team2);
+    const hasSweep = sw1||sw2;
+    const isExp = expanded===m.id;
+    const kickoff = m.utcDate ? new Date(m.utcDate).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}) : "";
+
+    return (
+      <div onClick={()=>setExpanded(isExp?null:m.id)} style={{
+        background: isLive?"rgba(34,197,94,0.06)":hasSweep?"rgba(201,168,76,0.05)":"rgba(255,255,255,0.02)",
+        border: isLive?"1px solid rgba(34,197,94,0.3)":hasSweep?"1px solid rgba(201,168,76,0.15)":"1px solid rgba(255,255,255,0.06)",
+        borderRadius:12, padding:"12px 14px", marginBottom:7, cursor:"pointer"
+      }}>
+        {/* Top row */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <span style={{fontSize:9,color:"rgba(255,255,255,0.3)"}}>{m.group?.replace("GROUP_","Group ")?.replace(/_/g," ")} · {m.venue?.split(",")[0]}</span>
+          <span style={{fontSize:10,fontWeight:700,color:isLive?"#22C55E":isDone?"rgba(255,255,255,0.4)":"#F59E0B",display:"flex",alignItems:"center",gap:4}}>
+            {isLive&&<span style={{width:6,height:6,borderRadius:"50%",background:"#22C55E",display:"inline-block",animation:"pulse 1s infinite"}}/>}
+            {isLive?`LIVE${m.minute?` ${m.minute}'`:""}`:isDone?"FT":m.status==="HT"?"HT":kickoff+" UTC"}
+          </span>
+        </div>
+        {/* Teams + score */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",alignItems:"center",gap:6}}>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:13,fontWeight:700,color:sw1?COLORS[sw1.owner].a:"#fff",lineHeight:1.2}}>{m.team1||"TBD"}</div>
+            {sw1&&<span style={S.pill(COLORS[sw1.owner].a,true)}>{sw1.owner}</span>}
+          </div>
+          <div style={{textAlign:"center",minWidth:56}}>
+            {isDone||isLive||m.status==="HT"
+              ? <div style={{fontSize:22,fontWeight:900}}>{m.score1??"-"}<span style={{color:"rgba(255,255,255,0.2)",margin:"0 2px"}}>–</span>{m.score2??"-"}</div>
+              : <div style={{fontSize:13,color:"rgba(255,255,255,0.3)"}}>vs</div>
+            }
+            {isDone&&m.ht1!=null&&<div style={{fontSize:9,color:"rgba(255,255,255,0.3)",marginTop:1}}>HT {m.ht1}–{m.ht2}</div>}
+          </div>
+          <div style={{textAlign:"left"}}>
+            <div style={{fontSize:13,fontWeight:700,color:sw2?COLORS[sw2.owner].a:"#fff",lineHeight:1.2}}>{m.team2||"TBD"}</div>
+            {sw2&&<span style={S.pill(COLORS[sw2.owner].a,true)}>{sw2.owner}</span>}
+          </div>
+        </div>
+        {hasSweep&&!isExp&&<div style={{textAlign:"center",fontSize:9,color:"rgba(201,168,76,0.6)",marginTop:5}}>⭐ sweepstake match</div>}
+        {isExp&&(
+          <div style={{marginTop:10,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:8}}>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.4)"}}>
+              {m.utcDate?new Date(m.utcDate).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"}):""}
+              {m.venue?` · ${m.venue}`:""}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ── TEAM DETAIL ──────────────────────────────────────────────────────────────
+  if (selected) {
+    const t = swTeams.find(x=>x.id===selected);
+    if (!t) { setSelected(null); return null; }
+    const c = COLORS[t.owner];
+    const teamMs = matches.filter(m => matchSW(m.team1)?.id===t.id || matchSW(m.team2)?.id===t.id);
+    const played = teamMs.filter(m=>m.status==="FT");
+    const upcoming = teamMs.filter(m=>m.status==="NS");
+    const live = teamMs.filter(m=>m.status==="LIVE"||m.status==="HT");
+
+    // Form
+    const form = played.map(m=>{
+      const home = matchSW(m.team1)?.id===t.id;
+      const s1=m.score1,s2=m.score2;
+      if(s1==null) return null;
+      if(home) return s1>s2?"W":s1===s2?"D":"L";
+      return s2>s1?"W":s2===s1?"D":"L";
+    }).filter(Boolean);
+
+    // Group standing
+    const grpStanding = standings.find(sg => sg.table?.some(row => {
+      const n = row.team?.name?.toLowerCase()||"";
+      return t.alt.some(a => a.toLowerCase()===n || n.includes(a.toLowerCase()));
+    }));
+    const myRow = grpStanding?.table?.find(row => {
+      const n = row.team?.name?.toLowerCase()||"";
+      return t.alt.some(a => a.toLowerCase()===n || n.includes(a.toLowerCase()));
+    });
+
+    return (
+      <div style={S.page}>
+        <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}} @keyframes si{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
+        <div style={{background:"rgba(255,255,255,0.02)",borderBottom:"1px solid rgba(255,255,255,0.07)",padding:"14px 16px",display:"flex",alignItems:"center",gap:10}}>
+          <button onClick={()=>setSelected(null)} style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:8,padding:"7px 12px",color:"#fff",cursor:"pointer",fontSize:13}}>← Back</button>
+          <div style={{flex:1}}/>
+          <span style={S.pill(c.a)}>{t.owner}'s team</span>
+        </div>
+
+        <div style={{padding:"18px 16px",animation:"si 0.25s ease"}}>
+          {/* Hero */}
+          <div style={{textAlign:"center",marginBottom:18}}>
+            <div style={{fontSize:60,marginBottom:4}}>{t.flag}</div>
+            <div style={{fontSize:24,fontWeight:800}}>{t.name}</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginTop:2}}>{t.odds} to win</div>
+            <div style={{marginTop:8,fontSize:13,fontWeight:700,color:t.eliminated?"#EF4444":c.a}}>
+              {t.eliminated?"❌ Eliminated":`${t.stage} · ${pts(t)} sweepstake pts`}
+            </div>
+          </div>
+
+          {/* Live now */}
+          {live.length>0&&(
+            <div style={{marginBottom:14}}>
+              <div style={S.sec}>🔴 LIVE NOW</div>
+              {live.map(m=><MatchCard key={m.id} m={m}/>)}
+            </div>
+          )}
+
+          {/* Group record */}
+          {myRow&&(
+            <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginBottom:14}}>
+              {[["P",myRow.playedGames],["W",myRow.won],["D",myRow.draw],["L",myRow.lost],["Pts",myRow.points]].map(([k,v])=>(
+                <div key={k} style={{background:"rgba(255,255,255,0.04)",borderRadius:9,padding:"10px 4px",textAlign:"center",border:"1px solid rgba(255,255,255,0.07)"}}>
+                  <div style={{fontSize:17,fontWeight:800,color:k==="W"?"#22C55E":k==="L"?"#EF4444":k==="Pts"?c.a:"#fff"}}>{v}</div>
+                  <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",marginTop:1}}>{k}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Form */}
+          {form.length>0&&(
+            <div style={{marginBottom:14}}>
+              <div style={S.sec}>FORM</div>
+              <div style={{display:"flex",gap:5}}>
+                {form.map((r,i)=><div key={i} style={{width:28,height:28,borderRadius:"50%",background:rcol(r),display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:"#000"}}>{r}</div>)}
+              </div>
+            </div>
+          )}
+
+          {/* Group table */}
+          {grpStanding&&(
+            <div style={{marginBottom:14}}>
+              <div style={S.sec}>GROUP TABLE · LIVE</div>
+              <div style={{background:"rgba(255,255,255,0.02)",borderRadius:10,overflow:"hidden",border:"1px solid rgba(255,255,255,0.07)"}}>
+                <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",padding:"6px 11px",fontSize:9,color:"rgba(255,255,255,0.35)",background:"rgba(255,255,255,0.04)"}}>
+                  {["TEAM","P","GD","PTS","W"].map(h=><span key={h} style={{textAlign:h==="TEAM"?"left":"center"}}>{h}</span>)}
+                </div>
+                {grpStanding.table.map((row,i)=>{
+                  const sw = matchSW(row.team?.name);
+                  const isMe = sw?.id===t.id;
+                  const oc = sw?COLORS[sw.owner]:null;
+                  return (
+                    <div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",padding:"9px 11px",fontSize:12,background:isMe?`rgba(${rgb(c.a)},0.12)`:"transparent",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+                      <span style={{display:"flex",alignItems:"center",gap:5}}>
+                        <span style={{fontSize:9,color:"rgba(255,255,255,0.3)",minWidth:12}}>{row.position}</span>
+                        <span style={{fontWeight:isMe?700:400}}>{row.team?.name}</span>
+                        {oc&&<span style={S.pill(oc.a,true)}>{sw.owner}</span>}
+                      </span>
+                      <span style={{textAlign:"center",color:"rgba(255,255,255,0.55)"}}>{row.playedGames}</span>
+                      <span style={{textAlign:"center",color:row.goalDifference>0?"#22C55E":row.goalDifference<0?"#EF4444":"rgba(255,255,255,0.55)"}}>{row.goalDifference>0?"+":""}{row.goalDifference}</span>
+                      <span style={{textAlign:"center",fontWeight:700}}>{row.points}</span>
+                      <span style={{textAlign:"center",color:"rgba(255,255,255,0.55)"}}>{row.won}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Results */}
+          {played.length>0&&(
+            <div style={{marginBottom:14}}>
+              <div style={S.sec}>RESULTS</div>
+              {played.map(m=><MatchCard key={m.id} m={m}/>)}
+            </div>
+          )}
+
+          {/* Upcoming */}
+          {upcoming.length>0&&(
+            <div style={{marginBottom:14}}>
+              <div style={S.sec}>UPCOMING</div>
+              {upcoming.slice(0,3).map(m=><MatchCard key={m.id} m={m}/>)}
+            </div>
+          )}
+
+          {/* Stage control */}
+          <div style={{marginBottom:14}}>
+            <div style={S.sec}>TOURNAMENT STAGE</div>
+            <div style={{display:"flex",overflowX:"auto",gap:6,paddingBottom:4}}>
+              {[...STAGES,"Eliminated"].map(s=>{
+                const active = t.eliminated?s==="Eliminated":t.stage===s;
+                return <button key={s} onClick={()=>setStage(t.id,s)} style={{flexShrink:0,padding:"8px 12px",borderRadius:8,border:active?`1px solid ${c.a}`:"1px solid rgba(255,255,255,0.1)",background:active?`rgba(${rgb(c.a)},0.2)`:s==="Eliminated"?"rgba(239,68,68,0.08)":"rgba(255,255,255,0.04)",color:s==="Eliminated"?"#EF4444":active?c.a:"rgba(255,255,255,0.6)",fontSize:11,fontWeight:active?700:400,cursor:"pointer",whiteSpace:"nowrap"}}>{s}</button>;
+              })}
+            </div>
+          </div>
+
+          {/* Score breakdown */}
+          <div style={{background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"14px",border:"1px solid rgba(255,255,255,0.07)"}}>
+            <div style={S.sec}>SWEEPSTAKE SCORE</div>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+              <span style={{fontSize:12,color:"rgba(255,255,255,0.5)"}}>Win probability</span>
+              <span style={{fontSize:12,fontWeight:700}}>{t.prob}%</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+              <span style={{fontSize:12,color:"rgba(255,255,255,0.5)"}}>Stage multiplier ({t.stage})</span>
+              <span style={{fontSize:12,fontWeight:700}}>×{smult(t.stage)}</span>
+            </div>
+            <div style={{height:1,background:"rgba(255,255,255,0.08)",margin:"8px 0"}}/>
+            <div style={{display:"flex",justifyContent:"space-between"}}>
+              <span style={{fontSize:13,fontWeight:600}}>Total</span>
+              <span style={{fontSize:18,fontWeight:800,color:t.eliminated?"#EF4444":c.a}}>{t.eliminated?"0 ❌":pts(t)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MAIN APP
+  // ═══════════════════════════════════════════════════════════════════════════
+  return (
+    <div style={S.page}>
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}} @keyframes si{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}} @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+
+      {/* Header */}
+      <div style={{background:"linear-gradient(160deg,#061a0b 0%,#0d0d1a 60%,#060f16 100%)",padding:"16px 16px 0",borderBottom:"1px solid rgba(255,255,255,0.07)"}}>
+        <div style={{textAlign:"center",marginBottom:10}}>
+          <div style={{fontSize:22}}>⚽</div>
+          <div style={{fontSize:18,fontWeight:800,letterSpacing:"0.1em"}}>WORLD CUP 2026</div>
+          <div style={{fontSize:9,color:"#C9A84C",letterSpacing:"0.2em"}}>FAMILY SWEEPSTAKE</div>
+        </div>
+
+        {/* Status bar */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:12}}>
+          {loading?(
+            <span style={{fontSize:10,color:"rgba(255,255,255,0.4)",display:"flex",alignItems:"center",gap:5}}>
+              <span style={{display:"inline-block",animation:"spin 1s linear infinite",fontSize:12}}>⟳</span> Fetching live data…
+            </span>
+          ):error?(
+            <span style={{fontSize:10,color:"#EF4444"}}>
+              ⚠ {error.slice(0,50)} · <button onClick={fetchAll} style={{background:"none",border:"none",color:"#F59E0B",cursor:"pointer",fontSize:10,padding:0}}>Retry</button>
+            </span>
+          ):(
+            <>
+              {liveMs.length>0&&(
+                <span style={{background:"rgba(34,197,94,0.2)",border:"1px solid rgba(34,197,94,0.4)",borderRadius:20,padding:"2px 8px",fontSize:10,color:"#22C55E",fontWeight:700,display:"flex",alignItems:"center",gap:4}}>
+                  <span style={{width:6,height:6,borderRadius:"50%",background:"#22C55E",display:"inline-block",animation:"pulse 1s infinite"}}/>
+                  {liveMs.length} LIVE
+                </span>
+              )}
+              <span style={{fontSize:10,color:"rgba(255,255,255,0.35)"}}>
+                {lastFetch?.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
+              </span>
+              <button onClick={fetchAll} style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:6,padding:"3px 8px",color:"rgba(255,255,255,0.5)",cursor:"pointer",fontSize:11}}>↻</button>
+            </>
+          )}
+        </div>
+
+        {/* Tabs */}
+        <div style={{display:"flex",borderTop:"1px solid rgba(255,255,255,0.07)"}}>
+          {[["scores","⚽ Scores"],["groups","📊 Groups"],["teams","🌍 Teams"],["sweepstake","🏆 Sweepstake"]].map(([id,label])=>(
+            <button key={id} onClick={()=>setTab(id)} style={S.tabBtn(tab===id)}>{label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── SCORES ── */}
+      {tab==="scores"&&(
+        <div style={{padding:"14px 14px",animation:"si 0.25s ease"}}>
+
+          {liveMs.length>0&&<>
+            <div style={S.sec}>🔴 LIVE NOW</div>
+            {liveMs.map(m=><MatchCard key={m.id} m={m}/>)}
+            <div style={{height:1,background:"rgba(255,255,255,0.07)",margin:"12px 0"}}/>
+          </>}
+
+          {todayMs.length>0&&<>
+            <div style={S.sec}>TODAY · {new Date().toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"}).toUpperCase()}</div>
+            {todayMs.map(m=><MatchCard key={m.id} m={m}/>)}
+            <div style={{height:1,background:"rgba(255,255,255,0.07)",margin:"12px 0"}}/>
+          </>}
+
+          {recentMs.filter(m=>m.date!==today).length>0&&<>
+            <div style={S.sec}>RECENT RESULTS</div>
+            {recentMs.filter(m=>m.date!==today).slice(0,12).map(m=><MatchCard key={m.id} m={m}/>)}
+            <div style={{height:1,background:"rgba(255,255,255,0.07)",margin:"12px 0"}}/>
+          </>}
+
+          {upcomingMs.filter(m=>m.date!==today).length>0&&<>
+            <div style={S.sec}>UPCOMING</div>
+            {upcomingMs.filter(m=>m.date!==today).slice(0,15).map(m=><MatchCard key={m.id} m={m}/>)}
+          </>}
+
+          {!loading&&matches.length===0&&(
+            <div style={{textAlign:"center",padding:"40px 20px",color:"rgba(255,255,255,0.3)"}}>
+              <div style={{fontSize:32,marginBottom:12}}>📡</div>
+              <div style={{fontSize:14,marginBottom:6}}>No data yet</div>
+              <button onClick={fetchAll} style={{background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"8px 16px",color:"#fff",cursor:"pointer",fontSize:12}}>↻ Try again</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── GROUPS ── */}
+      {tab==="groups"&&(
+        <div style={{padding:"14px 14px",animation:"si 0.25s ease"}}>
+          {standings.length===0&&!loading&&<div style={{textAlign:"center",padding:"30px 0",color:"rgba(255,255,255,0.3)",fontSize:12}}>Group tables loading…</div>}
+          {standings.map((sg,si)=>(
+            <div key={si} style={{marginBottom:14}}>
+              <div style={S.sec}>{sg.group?.replace("GROUP_","GROUP ")}</div>
+              <div style={{background:"rgba(255,255,255,0.02)",borderRadius:10,overflow:"hidden",border:"1px solid rgba(255,255,255,0.07)"}}>
+                <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",padding:"6px 11px",fontSize:9,color:"rgba(255,255,255,0.35)",background:"rgba(255,255,255,0.04)",letterSpacing:"0.08em"}}>
+                  {["TEAM","P","GD","PTS","W"].map(h=><span key={h} style={{textAlign:h==="TEAM"?"left":"center"}}>{h}</span>)}
+                </div>
+                {sg.table?.map((row,i)=>{
+                  const sw = matchSW(row.team?.name);
+                  const oc = sw?COLORS[sw.owner]:null;
+                  return (
+                    <div key={i} onClick={()=>sw&&setSelected(sw.id)} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",padding:"9px 11px",fontSize:12,background:sw?`rgba(${rgb(oc.a)},0.07)`:"transparent",borderBottom:"1px solid rgba(255,255,255,0.04)",cursor:sw?"pointer":"default"}}>
+                      <span style={{display:"flex",alignItems:"center",gap:4}}>
+                        <span style={{fontSize:9,color:"rgba(255,255,255,0.3)",minWidth:12}}>{row.position}</span>
+                        <span style={{fontWeight:sw?700:400}}>{row.team?.name}</span>
+                        {oc&&<span style={S.pill(oc.a,true)}>{sw.owner}</span>}
+                      </span>
+                      <span style={{textAlign:"center",color:"rgba(255,255,255,0.55)"}}>{row.playedGames}</span>
+                      <span style={{textAlign:"center",color:row.goalDifference>0?"#22C55E":row.goalDifference<0?"#EF4444":"rgba(255,255,255,0.55)"}}>{row.goalDifference>0?"+":""}{row.goalDifference}</span>
+                      <span style={{textAlign:"center",fontWeight:700}}>{row.points}</span>
+                      <span style={{textAlign:"center",color:"rgba(255,255,255,0.55)"}}>{row.won}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          {/* Top scorers */}
+          {scorers.length>0&&(
+            <div style={{marginBottom:14}}>
+              <div style={S.sec}>TOP SCORERS</div>
+              <div style={{background:"rgba(255,255,255,0.02)",borderRadius:10,overflow:"hidden",border:"1px solid rgba(255,255,255,0.07)"}}>
+                {scorers.slice(0,10).map((s,i)=>{
+                  const sw = matchSW(s.team?.name);
+                  const oc = sw?COLORS[sw.owner]:null;
+                  return (
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderBottom:"1px solid rgba(255,255,255,0.04)",background:sw?`rgba(${rgb(oc.a)},0.06)`:"transparent"}}>
+                      <span style={{fontSize:11,color:"rgba(255,255,255,0.3)",minWidth:16}}>{i+1}</span>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:12,fontWeight:600}}>{s.player?.name}</div>
+                        <div style={{fontSize:10,color:"rgba(255,255,255,0.4)"}}>{s.team?.name}{oc&&<span style={{...S.pill(oc.a,true),marginLeft:4}}>{sw.owner}</span>}</div>
+                      </div>
+                      <div style={{fontSize:16,fontWeight:800,color:"#C9A84C"}}>{s.goals}</div>
+                      <div style={{fontSize:9,color:"rgba(255,255,255,0.3)"}}>⚽</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── TEAMS ── */}
+      {tab==="teams"&&(
+        <div style={{padding:"14px 14px",animation:"si 0.25s ease"}}>
+          <div style={S.sec}>TAP FOR FULL STATS · {swTeams.filter(t=>!t.eliminated).length} ACTIVE</div>
+          {Object.values(P).map(owner=>{
+            const oTeams = swTeams.filter(t=>t.owner===owner);
+            const c = COLORS[owner];
+            const rank = leaderboard.findIndex(e=>e.name===owner)+1;
+            return (
+              <div key={owner} style={{marginBottom:20}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                  <span style={{fontSize:12,fontWeight:800,letterSpacing:"0.07em",color:c.a}}>{owner.toUpperCase()}</span>
+                  <span style={{fontSize:10,color:"rgba(255,255,255,0.3)"}}>#{rank} · {opscore(swTeams,owner)} sw.pts</span>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7}}>
+                  {oTeams.map(t=>{
+                    // Find their group row
+                    const grpRow = standings.flatMap(sg=>sg.table||[]).find(row=>{
+                      const n=row.team?.name?.toLowerCase()||"";
+                      return t.alt.some(a=>a.toLowerCase()===n||n.includes(a.toLowerCase()));
+                    });
+                    const liveNow = liveMs.some(m=>matchSW(m.team1)?.id===t.id||matchSW(m.team2)?.id===t.id);
+                    return (
+                      <button key={t.id} onClick={()=>setSelected(t.id)} style={{background:t.eliminated?"rgba(255,255,255,0.02)":liveNow?"rgba(34,197,94,0.08)":c.d, border:t.eliminated?"1px solid rgba(255,255,255,0.06)":liveNow?"1px solid rgba(34,197,94,0.35)":`1px solid ${c.b}`, borderRadius:11,padding:"11px 8px",cursor:"pointer",textAlign:"center",position:"relative",opacity:t.eliminated?0.45:1}}>
+                        {liveNow&&<div style={{position:"absolute",top:4,left:5,width:6,height:6,borderRadius:"50%",background:"#22C55E",animation:"pulse 1s infinite"}}/>}
+                        {t.star&&!t.eliminated&&<div style={{position:"absolute",top:4,right:5,fontSize:9}}>⭐</div>}
+                        {t.eliminated&&<div style={{position:"absolute",top:4,right:5,fontSize:9}}>❌</div>}
+                        <div style={{fontSize:24,marginBottom:3}}>{t.flag}</div>
+                        <div style={{fontSize:10,fontWeight:600,color:t.eliminated?"rgba(255,255,255,0.3)":"#fff",lineHeight:1.2}}>{t.name}</div>
+                        {grpRow
+                          ? <div style={{fontSize:9,color:"rgba(255,255,255,0.4)",marginTop:2}}>{grpRow.playedGames}P {grpRow.won}W · {grpRow.points}pts</div>
+                          : <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",marginTop:2}}>{t.odds}</div>
+                        }
+                        {!t.eliminated&&<div style={{fontSize:9,fontWeight:700,color:liveNow?"#22C55E":c.a,marginTop:3}}>{pts(t)} sw.pts</div>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── SWEEPSTAKE ── */}
+      {tab==="sweepstake"&&(
+        <div style={{padding:"14px 14px",animation:"si 0.25s ease"}}>
+          {bestTeam&&(
+            <div onClick={()=>setSelected(bestTeam.id)} style={{background:"linear-gradient(135deg,rgba(201,168,76,0.12),rgba(201,168,76,0.03))",border:"1px solid rgba(201,168,76,0.25)",borderRadius:12,padding:"13px 15px",marginBottom:14,display:"flex",alignItems:"center",gap:12,cursor:"pointer"}}>
+              <div style={{fontSize:34}}>{bestTeam.flag}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:10,color:"#C9A84C",letterSpacing:"0.1em",marginBottom:2}}>⭐ BEST POSITIONED</div>
+                <div style={{fontWeight:700,fontSize:15}}>{bestTeam.name} <span style={{fontWeight:400,color:"rgba(255,255,255,0.4)",fontSize:12}}>· {bestTeam.owner}'s</span></div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginTop:1}}>{bestTeam.stage} · {pts(bestTeam)} pts · {bestTeam.odds}</div>
+              </div>
+              <span style={{fontSize:10,color:"rgba(255,255,255,0.25)"}}>›</span>
+            </div>
+          )}
+
+          <div style={S.sec}>STANDINGS</div>
+          {leaderboard.map((entry,i)=>{
+            const c = COLORS[entry.name];
+            const pct = maxScore>0?(entry.score/maxScore)*100:0;
+            const myTs = swTeams.filter(t=>t.owner===entry.name);
+            const alive = myTs.filter(t=>!t.eliminated).length;
+            const bestMy = [...myTs].filter(t=>!t.eliminated).sort((a,b)=>pts(b)-pts(a))[0];
+            const medals = ["🥇","🥈","🥉","4️⃣"];
+            return (
+              <div key={entry.name} style={S.card(c.a)}>
+                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
+                  <div style={{width:36,height:36,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,background:`rgba(${rgb(c.a)},0.15)`,border:`1px solid rgba(${rgb(c.a)},0.3)`}}>{medals[i]}</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:700,fontSize:15}}>{entry.name}</div>
+                    <div style={{fontSize:10,color:"rgba(255,255,255,0.4)"}}>{alive}/{myTs.length} alive{bestMy?` · Best: ${bestMy.flag} ${bestMy.name}`:""}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:20,fontWeight:800,color:c.a}}>{entry.score}</div>
+                    <div style={{fontSize:9,color:"rgba(255,255,255,0.3)"}}>pts</div>
+                  </div>
+                </div>
+                <div style={{height:4,background:"rgba(255,255,255,0.07)",borderRadius:2,marginBottom:10}}>
+                  <div style={{height:"100%",width:`${pct}%`,background:`linear-gradient(90deg,${c.a}55,${c.a})`,borderRadius:2,transition:"width 0.6s ease"}}/>
+                </div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                  {myTs.map(t=>(
+                    <button key={t.id} onClick={()=>setSelected(t.id)} style={{background:t.eliminated?"rgba(255,255,255,0.03)":c.d,border:t.eliminated?"1px solid rgba(255,255,255,0.06)":`1px solid ${c.b}`,borderRadius:8,padding:"4px 8px",cursor:"pointer",opacity:t.eliminated?0.45:1,display:"flex",alignItems:"center",gap:4}}>
+                      <span style={{fontSize:12}}>{t.flag}</span>
+                      <span style={{fontSize:10,color:t.eliminated?"rgba(255,255,255,0.3)":"#fff",fontWeight:500}}>{t.name}</span>
+                      {!t.eliminated&&<span style={{fontSize:9,color:c.a,fontWeight:700}}>{pts(t)}</span>}
+                      {t.eliminated&&<span style={{fontSize:9}}>❌</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          <div style={{background:"rgba(255,255,255,0.02)",borderRadius:10,padding:"11px 13px",border:"1px solid rgba(255,255,255,0.06)",marginTop:4}}>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.3)",marginBottom:4,letterSpacing:"0.08em"}}>HOW SCORES WORK</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",lineHeight:1.7}}>Implied win probability × stage multiplier. Advance teams manually via Teams tab as they progress through rounds.</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>
